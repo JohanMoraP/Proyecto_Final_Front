@@ -1,10 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import RoomItem from './RoomItem';
 import './roomList.css';
+import { io } from 'socket.io-client';
+
+const socket = io('https://mensajeria-wty4.onrender.com', {
+  transports: ['websocket'],
+});
 
 const RoomsList = () => {
   const [rooms, setRooms] = useState([]);
+  const [unreadRooms, setUnreadRooms] = useState(new Set());
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const currentRoomCode = location.pathname.startsWith('/chat/')
+    ? location.pathname.split('/chat/')[1]
+    : null;
 
   const fetchRooms = async () => {
     try {
@@ -19,6 +31,28 @@ const RoomsList = () => {
   useEffect(() => {
     fetchRooms();
   }, []);
+
+  useEffect(() => {
+    socket.on('mensaje', (msg) => {
+      if (msg.room !== currentRoomCode) {
+        setUnreadRooms((prev) => new Set(prev).add(msg.room));
+      }
+    });
+
+    return () => {
+      socket.off('mensaje');
+    };
+  }, [currentRoomCode]);
+
+  useEffect(() => {
+    if (currentRoomCode) {
+      setUnreadRooms((prev) => {
+        const updated = new Set(prev);
+        updated.delete(currentRoomCode);
+        return updated;
+      });
+    }
+  }, [currentRoomCode]);
 
   const handleJoinRoom = () => {
     const roomCode = prompt('Ingrese el código de la sala:');
@@ -37,12 +71,12 @@ const RoomsList = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: roomName.trim(),
-          createdBy: '663fb8d9ab1234567890abcd', // ← reemplazar con el ID de usuario real
+          createdBy: '663fb8d9ab1234567890abcd', // ← reemplazar con ID usuario
         }),
       });
 
       if (res.ok) {
-        fetchRooms(); // actualiza la lista
+        fetchRooms(); // Actualiza lista
       } else {
         alert('Error al crear la sala');
       }
@@ -54,7 +88,7 @@ const RoomsList = () => {
 
   return (
     <div className="rooms-container">
-      <h2>Salas Disponibles</h2>
+      <h2 className="rooms-tittle" >Salas Disponibles</h2>
 
       <div className="room-buttons">
         <button onClick={handleJoinRoom}>🔍 Unirse a una sala</button>
@@ -63,11 +97,11 @@ const RoomsList = () => {
 
       <ul className="rooms-list">
         {rooms.map((room) => (
-          <li key={room._id} className="room-item">
-            <Link to={`/chat/${room.code}`} className="room-link">
-              {room.name}
-            </Link>
-          </li>
+          <RoomItem
+            key={room._id}
+            room={room}
+            hasUnread={unreadRooms.has(room.code)}
+          />
         ))}
       </ul>
     </div>
