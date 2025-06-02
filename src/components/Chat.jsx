@@ -52,7 +52,7 @@ const Chat = () => {
   return (
     <div className="chat-wrapper">
       <div className="chat-container">
-        <h3>Chat - Sala: {roomId}</h3>
+        <h3 className="chat-title">Sala: {roomId}</h3>
         <div className="chat-messages">
           {messages.map((msg, index) => (
             <div
